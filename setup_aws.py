@@ -1,6 +1,7 @@
 import boto3
 
-# Create a client pointed at Localstack instead of real AWS
+
+#first create dynamoDB
 dynamodb = boto3.client(
     "dynamodb",
     endpoint_url="http://localhost:4566/",  
@@ -8,7 +9,10 @@ dynamodb = boto3.client(
     aws_secret_access_key="test",
     region_name="us-east-1"
 )
+#print so we know the function finished
 print("Dynamodb created")
+
+
 
 s3 = boto3.client(
     "s3",
@@ -33,7 +37,7 @@ dynamodb.create_table(
         'AttributeType': "S"
     },
 ],
-    BillingMode="PAY_PER_REQUEST"
+    BillingMode="PAY_PER_REQUEST" #add fake billing mode
 )
 print("table created")
 
