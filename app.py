@@ -30,14 +30,26 @@ s3 = boto3.client(
 # GET, needs to return expected JSON from database 
 @app.route("/items", methods=["GET"])
 def get_items():
-    return jsonify(list(items.values())), 200
-
-# GET /items/1 — returns one item
-@app.route("/items/<int:item_id>", methods=["GET"])
-def get_item(item_id):
-    if item_id not in items:
-        return "", 404
-    return jsonify(items[item_id]), 200
+    get_id = request.args.get("id")
+    get_name = request.args.get("name")
+    #check to make sure no other items in request
+    allowed_keys = {"id", "name"}
+    request_keys = set(request.args.keys())
+    if request_keys.issubset(allowed_keys) is not True:
+        return jsonify("Error too many words"), 400
+    
+    if get_id is not None:
+        response = table.get_item(Key={"id": get_id})
+        if "Item" in response:
+            return jsonify(response["Item"]), 200
+        else:
+            return jsonify({"error": "not found"}), 404
+    elif get_name is not None:
+    
+    else:
+        response = table.scan()
+        return jsonify(response["Items"]), 200
+    
 
 #Sending GET with no parameters needs to return appropriate response
 
