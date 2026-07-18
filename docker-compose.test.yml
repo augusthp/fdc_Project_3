@@ -7,7 +7,7 @@ services:
     volumes:
       - "./setup_aws.py:/etc/localstack/init/ready.d/setup_aws.py"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/init/ready"]
       interval: 5s
       timeout: 5s
       retries: 10
