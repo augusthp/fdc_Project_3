@@ -1,0 +1,47 @@
+name: CI — Run Tests
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Write .env file
+        run: echo "LOCALSTACK_AUTH_TOKEN=${{ secrets.LOCALSTACK_AUTH_TOKEN }}" > .env
+
+      - name: Run tests
+        run: |
+          docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+          exit_code=$?
+          docker compose -f docker-compose.test.yml down
+          exit $exit_code
+
+  notify-slack:
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+      - name: Post result to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "*CI Result: ${{ needs.test.result == 'success' && '✅ PASSED' || '❌ FAILED' }}*",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Workflow:* `${{ github.workflow }}`\n*Status:* ${{ needs.test.result == 'success' && '✅ Tests passed' || '❌ Tests failed' }}\n*Branch:* `${{ github.ref_name }}`\n*Triggered by:* `${{ github.actor }}`\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View on GitHub>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
