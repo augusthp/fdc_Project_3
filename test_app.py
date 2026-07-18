@@ -76,4 +76,40 @@ def test_get(client):
     assert items[0]["name"] == "widget"
 
 
+def test_put(client):
+    #post test widget to client
+    post_test = client.post("/items", json={"name": "widget"})
+    post_test_id = post_test.get_json()["id"]
+
+    #update item return 200
+    put_test = client.put(f"/items/{post_test_id}", json={"name": "gadget"})
+    assert put_test.status_code == 200
+
+    #get correct item
+    db_response = table.get_item(Key={"id": post_test_id})
+    assert db_response["Item"]["name"] == "gadget"
+
+    #test return correct item
+    s3_response = s3.get_object(Bucket="items-bucket", Key=f"{post_test_id}.json")
+    s3_item = json.loads(s3_response["Body"].read())
+    assert s3_item == db_response["Item"]
+
+def test_put_not_found(client):
+    put_test = client.put("/items/nonexistent-id", json={"name": "gadget"})
+    assert put_test.status_code == 404
+
+def test_delete(client):
+    post_test = client.post("/items", json={"name": "widget"})
+    post_test_id = post_test.get_json()["id"]
+
+    delete_test = client.delete(f"/items/{post_test_id}")
+    assert delete_test.status_code == 204
+
+    # confirm removed from both stores
+    db_response = table.get_item(Key={"id": post_test_id})
+    assert "Item" not in db_response
+
+def test_delete_not_found(client):
+    delete_test = client.delete("/items/nonexistent-id")
+    assert delete_test.status_code == 404
 

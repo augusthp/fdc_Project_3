@@ -1,15 +1,17 @@
 import boto3
 import uuid #used for giving each item a unique id
 import json
+import os
 from flask import Flask, jsonify, request
 from boto3.dynamodb.conditions import Attr
 items = {}
 next_id = 1
 app = Flask (__name__)
+LOCALSTACK_ENDPOINT = os.environ.get("LOCALSTACK_ENDPOINT", "http://localhost:4566")
 
 dynamodb = boto3.resource(
     "dynamodb",
-    endpoint_url="http://localhost:4566/",
+    endpoint_url=LOCALSTACK_ENDPOINT,
     aws_access_key_id="test",
     aws_secret_access_key="test",
     region_name="us-east-1"
@@ -17,7 +19,7 @@ dynamodb = boto3.resource(
 table = dynamodb.Table("items")
 s3 = boto3.client(
     "s3",
-    endpoint_url="http://localhost:4566/",
+    endpoint_url=LOCALSTACK_ENDPOINT,
     aws_access_key_id="test",
     aws_secret_access_key="test",
     region_name="us-east-1"
@@ -85,16 +87,36 @@ def post_items():
     return jsonify(full_item),201
 
 
-@app.route("/items/<int:item_id>", methods=["PUT"])
+@app.route("/items/<string:item_id>", methods=["PUT"])
 def update_item(item_id):
-     data = request.get_json() #get the json body
+    data = request.get_json() #get the json body
+    item = table.get_item(Key={"id": item_id})
+    if "Item" not in item:
+        return jsonify({"error": "not found"}), 404
+    response = table.scan(FilterExpression=Attr("name").eq(data.get("name")))
+    #check for item conflict by seeing if an item has 2 ids
+    conflict = any(match["id"] != item_id for match in response["Items"])
+    if conflict:
+        return jsonify({"error": "name already exists"}), 409
+    #didnt fail any checks so build item return 200
+    updated_item = {"id": item_id, **data}
+    table.put_item(Item=updated_item)
+    s3.put_object(Bucket="items-bucket", Key=f"{item_id}.json", Body=json.dumps(updated_item))
+    return jsonify(updated_item), 200
      
 
-@app.route("/items/<int:item_id>", methods=["DELETE"])
+
+
+@app.route("/items/<string:item_id>", methods=["DELETE"])
 def delete_item(item_id):
-    if item_id not in items:
-        return "", 404
-    del items[item_id]
+    item = table.get_item(Key={"id": item_id})
+    #check item exists if not return 404
+    if "Item" not in item:
+        return jsonify({"error": "not found"}), 404
+    
+    #item exists delete item
+    table.delete_item(Key={"id": item_id})
+    s3.delete_object(Bucket="items-bucket", Key=f"{item_id}.json")
     return "", 204
 
 

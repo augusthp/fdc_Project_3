@@ -1,0 +1,21 @@
+services:
+  localstack:
+    image: localstack/localstack
+    environment:
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      - SERVICES=dynamodb,s3
+    volumes:
+      - "./setup_aws.py:/etc/localstack/init/ready.d/setup_aws.py"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  test-runner:
+    build: .
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
