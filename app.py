@@ -45,7 +45,11 @@ def get_items():
         else:
             return jsonify({"error": "not found"}), 404
     elif get_name is not None:
-    
+        response = table.scan(FilterExpression=Attr("name").eq(get_name))
+        if response["Items"]:
+            return jsonify(response["Items"][0]), 200
+        else:
+            return jsonify({"error": "not found"}), 404
     else:
         response = table.scan()
         return jsonify(response["Items"]), 200
@@ -83,11 +87,8 @@ def post_items():
 
 @app.route("/items/<int:item_id>", methods=["PUT"])
 def update_item(item_id):
-    if item_id not in items:
-        return "", 404
-    data = request.get_json()
-    items[item_id] = data
-    return jsonify(items[item_id]), 200
+     data = request.get_json() #get the json body
+     
 
 @app.route("/items/<int:item_id>", methods=["DELETE"])
 def delete_item(item_id):

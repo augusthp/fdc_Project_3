@@ -49,4 +49,31 @@ def test_duplicate_post(client):
     #only one widget got made
     scan_response = table.scan(FilterExpression=Attr("name").eq("widget"))
     assert len(scan_response["Items"]) == 1 
+
+def test_get(client):
+    post_test = client.post("/items", json={"name": "widget"})
+    post_test_id = post_test.get_json()["id"]
+
+    #test with valid name should return 200
+    get_test = client.get("/items", query_string={"id": post_test_id})
+    assert get_test.status_code == 200
+    assert get_test.get_json()["name"] == "widget"
+
+    #test GET with non existant name should return 404
+    get_test = client.get("/items", query_string={"name": "qwerty"})
+    assert get_test.status_code == 404
     
+    #test invalid params, should return 400
+    get_test = client.get("/items", query_string={"nname": "widget"})
+    assert get_test.status_code == 400
+    
+    #test no params, should return all items 200
+    get_test = get_test = client.get("/items")
+    assert get_test.status_code == 200
+    items = get_test.get_json()
+
+    assert len(items) == 1
+    assert items[0]["name"] == "widget"
+
+
+
